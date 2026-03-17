@@ -117,11 +117,15 @@
     <input type="text" id="album-id"
            placeholder="例：122119543826466169"
            value="122119543826466169">
-    <p class="hint">Facebook 相簿連結的數字 ID，如 https://www.facebook.com/media/set/?set=a.122119543826466169 的 ID 為 122119543826466169</p>
+    <p class="hint">Facebook 相簿連結的數字 ID，如 https://www.facebook.com/media/set/?set=a.122119543826466169 的 ID 為 <strong>122119543826466169</strong></p>
 
     <label for="access-token">Access Token <span style="font-weight:400;color:#aaa">（選填，已在 .env 設定可留空）</span></label>
     <textarea id="access-token" placeholder="貼上 Facebook Graph API Access Token（留空則使用 .env 的 FB_ACCESS_TOKEN）"></textarea>
     <p class="hint">前往 <strong>developers.facebook.com/tools/explorer</strong> 取得 Token（需包含 pages_show_list, business_management, pages_read_engagement, pages_manage_metadata, public_profile 權限）</p>
+
+    <label for="spreadsheet-id">Google Spreadsheet ID <span style="font-weight:400;color:#aaa">（選填，已在 .env 設定可留空）</span></label>
+    <input type="text" id="spreadsheet-id" placeholder="貼上 Google Spreadsheet ID（留空則使用 .env 的 GOOGLE_SPREADSHEET_ID）">
+    <p class="hint">Google Sheets 網址列 /d/ 後方的字串，如 <strong>1B2vDGBhCu_Eah07eNkhshdwfe55G_l3B5_icdc7F0fM</strong></p>
 
     <div id="error-display" class="error-msg"></div>
     <button class="btn btn-primary" id="start-btn" onclick="startJob()">開始抓取並 OCR</button>
@@ -162,10 +166,12 @@
     if (es) es.close();
 
     try {
+      const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
+
       const res = await fetch('/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ album_id: albumId, access_token: accessToken })
+        body: JSON.stringify({ album_id: albumId, access_token: accessToken, spreadsheet_id: spreadsheetId })
       });
       const data = await res.json();
 

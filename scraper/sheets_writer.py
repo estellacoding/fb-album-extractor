@@ -4,10 +4,15 @@ Google Sheets writer for FB album photo data.
 import time
 from datetime import date
 
-import gspread
+import os
 
-CREDENTIALS_PATH = "./credentials/fb-album-extractor-490401-fe1cd7794ccf.json"
-SPREADSHEET_ID = "1B2vDGBhCu_Eah07eNkhshdwfe55G_l3B5_icdc7F0fM"
+import gspread
+from dotenv import load_dotenv
+
+load_dotenv()
+
+CREDENTIALS_PATH = os.environ["GOOGLE_CREDENTIALS_PATH"]
+SPREADSHEET_ID = os.environ["GOOGLE_SPREADSHEET_ID"]
 HEADERS = ["id", "link", "updated_time", "album_name", "album_id", "圖片文字內容"]
 WRITE_SLEEP = 1.2
 
@@ -17,9 +22,9 @@ def _get_sheet_name(album_id: str) -> str:
     return f"{album_id}_{today}"
 
 
-def get_or_create_worksheet(sheet_name: str) -> gspread.Worksheet:
+def get_or_create_worksheet(sheet_name: str, spreadsheet_id: str) -> gspread.Worksheet:
     gc = gspread.service_account(filename=CREDENTIALS_PATH)
-    sh = gc.open_by_key(SPREADSHEET_ID)
+    sh = gc.open_by_key(spreadsheet_id)
     try:
         ws = sh.worksheet(sheet_name)
         print(f"工作表已存在：{sheet_name}")
@@ -46,6 +51,7 @@ def write_photos_to_sheet(
     photos: list[dict],
     album_id: str,
     progress_callback=None,
+    spreadsheet_id: str | None = None,
 ) -> int:
     """
     Write photos to Google Sheets.
@@ -53,7 +59,7 @@ def write_photos_to_sheet(
     Returns count of newly written rows.
     """
     sheet_name = _get_sheet_name(album_id)
-    ws = get_or_create_worksheet(sheet_name)
+    ws = get_or_create_worksheet(sheet_name, spreadsheet_id or SPREADSHEET_ID)
     existing_ids = get_existing_ids(ws)
 
     if existing_ids and progress_callback:

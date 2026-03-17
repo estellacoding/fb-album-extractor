@@ -41,6 +41,7 @@ cp .env.example .env
 
 ```
 FB_ACCESS_TOKEN=你的 Facebook Access Token
+GOOGLE_SPREADSHEET_ID=你的 Google Sheets 試算表 ID
 ```
 
 Access Token 留空時，前端輸入欄也可以直接貼入。
@@ -57,11 +58,11 @@ Access Token 留空時，前端輸入欄也可以直接貼入。
 1. 至 [Google Cloud Console](https://console.cloud.google.com/) 建立 Service Account
 2. 下載 JSON 金鑰，放到 `credentials/` 資料夾
 3. 將 Service Account 的 email 加為 Google Sheet 的「編輯者」
-4. 在 `scraper/sheets_writer.py` 確認以下常數：
+4. 將金鑰路徑與試算表 ID 填入 `.env`：
 
-```python
-CREDENTIALS_PATH = "./credentials/fb-album-extractor-490401-fe1cd7794ccf.json"
-SPREADSHEET_ID   = "1B2vDGBhCu_Eah07eNkhshdwfe55G_l3B5_icdc7F0fM"
+```
+GOOGLE_CREDENTIALS_PATH=./credentials/your_service_account.json
+GOOGLE_SPREADSHEET_ID=你的試算表ID
 ```
 
 ## 使用方式

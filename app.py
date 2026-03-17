@@ -30,7 +30,7 @@ jobs: dict = {}
 jobs_lock = threading.Lock()
 
 
-def _background_job(job_id: str, album_id: str, access_token: str) -> None:
+def _background_job(job_id: str, album_id: str, access_token: str, spreadsheet_id: str) -> None:
     q = jobs[job_id]["queue"]
 
     def notify(message: str, status: str = "progress") -> None:
@@ -65,7 +65,7 @@ def _background_job(job_id: str, album_id: str, access_token: str) -> None:
 
         # 3. Write to Google Sheets
         notify("寫入 Google Sheets 中...")
-        written = write_photos_to_sheet(photos, album_id, progress_callback=notify)
+        written = write_photos_to_sheet(photos, album_id, progress_callback=notify, spreadsheet_id=spreadsheet_id)
 
         with jobs_lock:
             jobs[job_id]["status"] = "done"
@@ -89,11 +89,15 @@ def start_job():
     album_id = data.get("album_id", "").strip()
     access_token = (data.get("access_token", "").strip()
                     or os.getenv("FB_ACCESS_TOKEN", "").strip())
+    spreadsheet_id = (data.get("spreadsheet_id", "").strip()
+                      or os.getenv("GOOGLE_SPREADSHEET_ID", "").strip())
 
     if not album_id:
         return jsonify({"error": "請輸入相簿 ID。"}), 400
     if not access_token:
         return jsonify({"error": "請輸入 Access Token（或在 .env 設定 FB_ACCESS_TOKEN）。"}), 400
+    if not spreadsheet_id:
+        return jsonify({"error": "請輸入 Google Spreadsheet ID（或在 .env 設定 GOOGLE_SPREADSHEET_ID）。"}), 400
 
     job_id = str(uuid.uuid4())
     with jobs_lock:
@@ -101,7 +105,7 @@ def start_job():
 
     threading.Thread(
         target=_background_job,
-        args=(job_id, album_id, access_token),
+        args=(job_id, album_id, access_token, spreadsheet_id),
         daemon=True,
     ).start()
     return jsonify({"job_id": job_id})
