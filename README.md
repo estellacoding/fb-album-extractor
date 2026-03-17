@@ -40,16 +40,20 @@ cp .env.example .env
 `.env` 內容：
 
 ```
+# Facebook Access Token（可留空，啟動後在前端輸入）
 FB_ACCESS_TOKEN=你的 Facebook Access Token
-GOOGLE_SPREADSHEET_ID=你的 Google Sheets 試算表 ID
+
+# Google Sheets 試算表 ID（可留空，啟動後在前端輸入）
+GOOGLE_SPREADSHEET_ID=你的試算表 ID
+
+# Google Service Account JSON 金鑰路徑
+GOOGLE_CREDENTIALS_PATH=./credentials/your_service_account.json
 ```
 
-Access Token 留空時，前端輸入欄也可以直接貼入。
-
-#### 取得 Long-lived Token（建議，有效期 60 天）
+#### 取得 Facebook Long-lived Token（建議，有效期 60 天）
 
 1. 至 [Meta for Developers](https://developers.facebook.com/apps/) 建立應用程式
-2. 前往 [Graph API Explorer](https://developers.facebook.com/tools/explorer) 取得 Access Token（需包含 pages_show_list, business_management, pages_read_engagement, pages_manage_metadata, public_profile 權限）
+2. 前往 [Graph API Explorer](https://developers.facebook.com/tools/explorer) 取得 Access Token（需包含 `pages_show_list`, `business_management`, `pages_read_engagement`, `pages_manage_metadata`, `public_profile` 權限）
 3. 將短期 token 換成長期 token
 4. 將回傳的 token 填入 `.env`
 
@@ -58,12 +62,7 @@ Access Token 留空時，前端輸入欄也可以直接貼入。
 1. 至 [Google Cloud Console](https://console.cloud.google.com/) 建立 Service Account
 2. 下載 JSON 金鑰，放到 `credentials/` 資料夾
 3. 將 Service Account 的 email 加為 Google Sheet 的「編輯者」
-4. 將金鑰路徑與試算表 ID 填入 `.env`：
-
-```
-GOOGLE_CREDENTIALS_PATH=./credentials/your_service_account.json
-GOOGLE_SPREADSHEET_ID=你的試算表ID
-```
+4. 將金鑰路徑填入 `.env` 的 `GOOGLE_CREDENTIALS_PATH`
 
 ## 使用方式
 
@@ -74,9 +73,10 @@ python app.py
 
 開啟瀏覽器至 `http://localhost:8080`
 
-1. 輸入相簿 ID（例如 `122119543826466169`）
-2. Access Token 留空則自動使用 `.env` 設定，或直接貼入新 token
-3. 點擊「開始抓取並 OCR」
+1. 輸入**相簿 ID**（例如 `122119543826466169`）
+2. 輸入 **Access Token**（留空則自動使用 `.env` 的 `FB_ACCESS_TOKEN`）
+3. 輸入 **Google Spreadsheet ID**（留空則自動使用 `.env` 的 `GOOGLE_SPREADSHEET_ID`）
+4. 點擊「開始抓取並 OCR」
 
 ## 輸出格式
 
