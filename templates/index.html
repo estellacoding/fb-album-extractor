@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FB Album Extractor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #e8f0fe 0%, #f0f4ff 100%);
+      min-height: 100vh;
+      padding: 32px 16px;
+      color: #2d2d2d;
+    }
+
+    .container { max-width: 680px; margin: 0 auto; }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #1877f2, #42a5f5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 24px; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-bottom: 6px;
+      color: #444;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 6px;
+      font-family: inherit;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: #1877f2; }
+    textarea {
+      resize: vertical;
+      min-height: 72px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.78rem;
+    }
+
+    .hint { font-size: 0.78rem; color: #999; margin-bottom: 18px; }
+
+    .error-msg {
+      color: #e53935;
+      font-size: 0.83rem;
+      margin-bottom: 12px;
+      min-height: 18px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .btn-primary { background: linear-gradient(90deg, #1877f2, #42a5f5); color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+
+    #progress-section { display: none; }
+
+    #log {
+      background: #0d1117;
+      color: #58d68d;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.8rem;
+      padding: 16px;
+      border-radius: 10px;
+      height: 280px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+    }
+    #log .line-error { color: #ff6b6b; }
+    #log .line-done  { color: #ffd700; font-weight: bold; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>FB Album Extractor</h1>
+  <p class="subtitle">抓取 Facebook 相簿所有照片，OCR 辨識文字，自動同步至 Google Sheets</p>
+
+  <div class="card">
+    <label for="album-id">相簿 ID</label>
+    <input type="text" id="album-id"
+           placeholder="例：122119543826466169"
+           value="122119543826466169">
+    <p class="hint">Facebook 相簿連結的數字 ID，如 https://www.facebook.com/media/set/?set=a.122119543826466169 的 ID 為 122119543826466169</p>
+
+    <label for="access-token">Access Token <span style="font-weight:400;color:#aaa">（選填，已在 .env 設定可留空）</span></label>
+    <textarea id="access-token" placeholder="貼上 Facebook Graph API Access Token（留空則使用 .env 的 FB_ACCESS_TOKEN）"></textarea>
+    <p class="hint">前往 <strong>developers.facebook.com/tools/explorer</strong> 取得 Token（需包含 pages_show_list, business_management, pages_read_engagement, pages_manage_metadata, public_profile 權限）</p>
+
+    <div id="error-display" class="error-msg"></div>
+    <button class="btn btn-primary" id="start-btn" onclick="startJob()">開始抓取並 OCR</button>
+  </div>
+
+  <div class="card" id="progress-section">
+    <label style="margin-bottom:10px">執行進度</label>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+<script>
+  let currentJobId = null;
+  let es = null;
+
+  function appendLog(text, cls) {
+    const log = document.getElementById('log');
+    const line = document.createElement('div');
+    if (cls) line.className = cls;
+    line.textContent = '› ' + text;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function startJob() {
+    const albumId = document.getElementById('album-id').value.trim();
+    const accessToken = document.getElementById('access-token').value.trim();
+    const errDiv = document.getElementById('error-display');
+    errDiv.textContent = '';
+
+    if (!albumId) { errDiv.textContent = '請輸入相簿 ID。'; return; }
+
+    document.getElementById('start-btn').disabled = true;
+    document.getElementById('progress-section').style.display = 'block';
+    document.getElementById('log').innerHTML = '';
+
+    if (es) es.close();
+
+    try {
+      const res = await fetch('/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ album_id: albumId, access_token: accessToken })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errDiv.textContent = data.error || '無法啟動任務。';
+        document.getElementById('start-btn').disabled = false;
+        return;
+      }
+
+      currentJobId = data.job_id;
+      appendLog('任務已啟動，連接 Facebook 中...');
+      listenProgress(currentJobId);
+
+    } catch (err) {
+      errDiv.textContent = '網路錯誤：' + err.message;
+      document.getElementById('start-btn').disabled = false;
+    }
+  }
+
+  function listenProgress(jobId) {
+    es = new EventSource('/progress/' + jobId);
+
+    es.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      if (data.status === 'heartbeat') return;
+
+      const cls = data.status === 'error' ? 'line-error'
+                : data.status === 'done'  ? 'line-done' : null;
+      appendLog(data.message, cls);
+
+      if (data.status === 'done' || data.status === 'error') {
+        es.close();
+        document.getElementById('start-btn').disabled = false;
+      }
+    };
+
+    es.onerror = function() {
+      appendLog('與伺服器的連線中斷，請重新整理頁面。', 'line-error');
+      es.close();
+      document.getElementById('start-btn').disabled = false;
+    };
+  }
+</script>
+</body>
+</html>
